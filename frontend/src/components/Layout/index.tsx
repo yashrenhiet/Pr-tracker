@@ -13,7 +13,9 @@ export function Layout({ children }: { children?: ReactNode }) {
     <div>
       <header className={styles.header}>
         <a href="/" className={styles.brand}>
-          <GitPullRequest size={20} aria-hidden="true" />
+          <span className={styles.brandMark}>
+            <GitPullRequest size={16} aria-hidden="true" />
+          </span>
           PR Tracker
         </a>
         <nav className={styles.nav} aria-label="Main">

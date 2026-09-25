@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Plus, Rows3 } from "lucide-react";
 import { useListReviewsQuery } from "../../store/api";
 import type { ReviewFilter, ReviewResponse } from "../../types";
 import { Button, StatCard, StatCardRow } from "../../components/ui";
@@ -24,10 +24,25 @@ function SummaryStats() {
 
   return (
     <StatCardRow>
-      <StatCard label="Total tracked" value={total} tone="neutral" />
-      <StatCard label="Ready for review" value={readyForReview} tone="info" />
-      <StatCard label="Blocked" value={blocked} tone="danger" />
-      <StatCard label="Merged" value={merged} tone="success" />
+      <StatCard label="Total tracked" value={total} tone="neutral" icon={<Rows3 size={18} aria-hidden="true" />} />
+      <StatCard
+        label="Ready for review"
+        value={readyForReview}
+        tone="info"
+        icon={<Clock size={18} aria-hidden="true" />}
+      />
+      <StatCard
+        label="Blocked"
+        value={blocked}
+        tone="danger"
+        icon={<AlertTriangle size={18} aria-hidden="true" />}
+      />
+      <StatCard
+        label="Merged"
+        value={merged}
+        tone="success"
+        icon={<CheckCircle2 size={18} aria-hidden="true" />}
+      />
     </StatCardRow>
   );
 }

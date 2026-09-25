@@ -31,7 +31,7 @@
 }
 
 .table tbody tr:hover {
-  background: #fafbfc;
+  background: var(--color-primary-soft);
 }
 
 .prLink {
@@ -40,7 +40,12 @@
   gap: 4px;
   font-family: var(--font-mono);
   font-size: 12px;
+  font-weight: 600;
   word-break: break-all;
+}
+
+.prLink:hover {
+  text-decoration: underline;
 }
 
 .blockReason {

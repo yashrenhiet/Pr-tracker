@@ -1,9 +1,13 @@
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: var(--space-3) var(--space-5);
-  background: var(--color-surface);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -11,34 +15,51 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-weight: 700;
+  font-weight: 800;
   font-size: 16px;
+  letter-spacing: -0.01em;
   color: var(--color-text);
   text-decoration: none;
 }
 
+.brandMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  color: #fff;
+  box-shadow: var(--shadow-sm);
+}
+
 .nav {
   display: flex;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  background: var(--color-neutral-bg);
+  padding: 3px;
+  border-radius: var(--radius-md);
 }
 
 .link {
-  padding: var(--space-1) var(--space-3);
+  padding: 6px var(--space-3);
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .link:hover {
-  background: var(--color-neutral-bg);
   color: var(--color-text);
 }
 
 .linkActive {
-  background: var(--color-info-bg);
-  color: var(--color-info);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .main {

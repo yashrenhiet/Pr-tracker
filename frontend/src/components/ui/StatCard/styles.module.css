@@ -1,6 +1,6 @@
 .row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
@@ -8,31 +8,53 @@
 .card {
   padding: var(--space-4);
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border-left: 3px solid var(--color-border-strong);
+  align-items: center;
+  gap: var(--space-3);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 
-.card.neutral {
-  border-left-color: var(--color-neutral);
+.iconBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
 }
-.card.danger {
-  border-left-color: var(--color-danger);
+
+.card.neutral .iconBadge {
+  background: var(--color-neutral-bg);
+  color: var(--color-neutral);
 }
-.card.success {
-  border-left-color: var(--color-success);
+.card.danger .iconBadge {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
-.card.info {
-  border-left-color: var(--color-info);
+.card.success .iconBadge {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+.card.info .iconBadge {
+  background: var(--color-info-bg);
+  color: var(--color-info);
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .value {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   line-height: 1.1;
 }
 
 .label {
   font-size: 13px;
   color: var(--color-text-muted);
+  font-weight: 500;
 }

@@ -19,13 +19,24 @@ body {
   background: var(--color-bg);
   font-size: 15px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-h1,
+h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
 h2,
 h3 {
   margin: 0;
-  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
 }
 
 button {
@@ -40,6 +51,12 @@ a {
 :focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Numbers that shouldn't visually jitter as they change — stat cards, pagination counts. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
 .visually-hidden {

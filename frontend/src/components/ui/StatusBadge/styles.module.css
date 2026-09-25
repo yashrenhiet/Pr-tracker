@@ -1,12 +1,20 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px var(--space-2);
+  gap: 6px;
+  padding: 3px var(--space-2) 3px 8px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  border: 1px solid transparent;
   white-space: nowrap;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: currentColor;
 }
 
 .neutral {

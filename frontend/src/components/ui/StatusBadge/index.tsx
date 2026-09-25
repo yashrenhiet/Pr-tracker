@@ -9,5 +9,10 @@ export interface StatusBadgeProps {
 
 export function StatusBadge({ status, label }: StatusBadgeProps) {
   const category = STATUS_CATEGORY[status];
-  return <span className={[styles.badge, styles[category]].join(" ")}>{label}</span>;
+  return (
+    <span className={[styles.badge, styles[category]].join(" ")}>
+      <span className={styles.dot} aria-hidden="true" />
+      {label}
+    </span>
+  );
 }
