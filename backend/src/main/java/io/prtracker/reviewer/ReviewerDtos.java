@@ -4,7 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.List;
 
 /** Request and response shapes for the {@code /reviewers} API. */
@@ -27,8 +27,8 @@ public final class ReviewerDtos {
       String email,
       String handle,
       List<String> components,
-      OffsetDateTime createdAt,
-      OffsetDateTime updatedAt) {
+      Instant createdAt,
+      Instant updatedAt) {
 
     static ReviewerResponse from(Reviewer r) {
       return new ReviewerResponse(

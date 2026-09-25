@@ -10,7 +10,6 @@ import jakarta.validation.constraints.Pattern;
 import java.net.URI;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,8 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
  * PUT    /api/reviewers/{id}/components/{component}   grant (idempotent)
  * DELETE /api/reviewers/{id}/components/{component}   revoke (idempotent)
  * </pre>
+ *
+ * <p>No class-level {@code @Validated}: Spring MVC validates the {@code @Pattern} path variables
+ * itself and answers 400. {@code @Validated} would route them through AOP instead, throwing an
+ * unmapped {@code ConstraintViolationException} (500).
  */
-@Validated
 @RestController
 @RequestMapping("/api/reviewers")
 public class ReviewerController {

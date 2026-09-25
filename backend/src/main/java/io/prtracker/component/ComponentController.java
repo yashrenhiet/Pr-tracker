@@ -12,7 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
  * reviewer grants, deduplicated case-insensitively and sorted.
  *
  * <p>Derived with one query instead of a separate registry table, so it can never drift out of sync
- * with the data it describes.
+ * with the data it describes. When spellings differ only by case, the {@code COLLATE "C"} minimum
+ * (uppercase first) wins, so the result doesn't depend on the database's locale.
  */
 @RestController
 @RequestMapping("/api/components")
@@ -20,12 +21,12 @@ public class ComponentController {
 
   private static final String SQL =
       """
-      SELECT min(component) AS component
+      SELECT min(component COLLATE "C") AS component
       FROM (SELECT component FROM pr_review
             UNION ALL
             SELECT component FROM reviewer_component) c
       GROUP BY lower(component)
-      ORDER BY lower(min(component))
+      ORDER BY lower(min(component COLLATE "C"))
       """;
 
   private final JdbcClient jdbc;

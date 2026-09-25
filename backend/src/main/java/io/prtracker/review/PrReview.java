@@ -9,7 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -60,11 +60,11 @@ public class PrReview {
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
-  private OffsetDateTime createdAt;
+  private Instant createdAt;
 
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
-  private OffsetDateTime updatedAt;
+  private Instant updatedAt;
 
   @Version
   @Column(nullable = false)
@@ -149,11 +149,11 @@ public class PrReview {
     this.metadata = new HashMap<>(metadata);
   }
 
-  public OffsetDateTime getCreatedAt() {
+  public Instant getCreatedAt() {
     return createdAt;
   }
 
-  public OffsetDateTime getUpdatedAt() {
+  public Instant getUpdatedAt() {
     return updatedAt;
   }
 

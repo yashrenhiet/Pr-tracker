@@ -3,6 +3,7 @@ package io.prtracker.review;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.prtracker.PostgresTestBase;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,8 +42,17 @@ class ReviewApiTest extends PostgresTestBase {
     assertThat(result).bodyJson().extractingPath("$.raisedBy").isEqualTo("ann");
     assertThat(result).bodyJson().extractingPath("$.status").isEqualTo("READY_FOR_REVIEW");
     assertThat(result).bodyJson().extractingPath("$.internalReviewers").asArray().containsExactly("bob");
-    assertThat(result).bodyJson().extractingPath("$.metadata.ticket").isEqualTo("ABC-1");
-    assertThat(result).bodyJson().extractingPath("$.metadata.blank").isNull();
+    assertThat(result).bodyJson().extractingPath("$.metadata").asMap()
+        .containsExactly(Map.entry("ticket", "ABC-1"));
+  }
+
+  @Test
+  void timestampsAreUtcInstantsRegardlessOfServerZone() {
+    createReview("https://github.com/acme/api/pull/1", "api");
+    var result = patch("/api/reviews/1", "{\"context\":\"touch updatedAt\"}");
+
+    assertThat(result).bodyJson().extractingPath("$.createdAt").asString().endsWith("Z");
+    assertThat(result).bodyJson().extractingPath("$.updatedAt").asString().endsWith("Z");
   }
 
   @Test
@@ -118,6 +128,7 @@ class ReviewApiTest extends PostgresTestBase {
     createReview("https://github.com/acme/api/pull/3", "API");
     put("/api/reviews/3/status", "{\"status\":\"MERGED\"}");
     patch("/api/reviews/2", "{\"platformReviewers\":[\"carol\"]}");
+    patch("/api/reviews/1", "{\"internalReviewers\":[\"dave\"]}");
 
     assertThat(mvc.get().uri("/api/reviews?component=api"))
         .bodyJson().extractingPath("$.totalElements").isEqualTo(2);
@@ -127,6 +138,10 @@ class ReviewApiTest extends PostgresTestBase {
         .bodyJson().extractingPath("$.totalElements").isEqualTo(3);
     assertThat(mvc.get().uri("/api/reviews?reviewer=carol"))
         .bodyJson().extractingPath("$.content[0].id").isEqualTo(2);
+    assertThat(mvc.get().uri("/api/reviews?reviewer=dave"))
+        .bodyJson().extractingPath("$.content[*].id").asArray().containsExactly(1);
+    assertThat(mvc.get().uri("/api/reviews?reviewer=nobody"))
+        .bodyJson().extractingPath("$.totalElements").isEqualTo(0);
   }
 
   @Test

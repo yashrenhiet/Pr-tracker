@@ -47,8 +47,12 @@ class ReviewerApiTest extends PostgresTestBase {
 
   @Test
   void rejectsInvalidEmailAndHandle() {
-    assertThat(createReviewer("Ann", "not-an-email", "ann")).hasStatus(HttpStatus.BAD_REQUEST);
-    assertThat(createReviewer("Ann", "ann@example.com", "has space")).hasStatus(HttpStatus.BAD_REQUEST);
+    assertThat(createReviewer("Ann", "not-an-email", "ann"))
+        .hasStatus(HttpStatus.BAD_REQUEST)
+        .bodyJson().extractingPath("$.errors[0].field").isEqualTo("email");
+    assertThat(createReviewer("Ann", "ann@example.com", "has space"))
+        .hasStatus(HttpStatus.BAD_REQUEST)
+        .bodyJson().extractingPath("$.errors[0].field").isEqualTo("handle");
   }
 
   @Test
@@ -68,7 +72,9 @@ class ReviewerApiTest extends PostgresTestBase {
   void grantRejectsInvalidComponentName() {
     createReviewer("Ann", "ann@example.com", "ann");
 
-    assertThat(mvc.put().uri("/api/reviewers/1/components/-bad")).hasStatus(HttpStatus.BAD_REQUEST);
+    assertThat(mvc.put().uri("/api/reviewers/1/components/-bad"))
+        .hasStatus(HttpStatus.BAD_REQUEST)
+        .bodyJson().extractingPath("$.errors[0].field").isEqualTo("component");
   }
 
   @Test

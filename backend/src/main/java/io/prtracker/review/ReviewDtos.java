@@ -7,7 +7,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -56,8 +56,8 @@ public final class ReviewDtos {
       List<String> platformReviewers,
       String blockReason,
       Map<String, String> metadata,
-      OffsetDateTime createdAt,
-      OffsetDateTime updatedAt,
+      Instant createdAt,
+      Instant updatedAt,
       long version) {
 
     static ReviewResponse from(PrReview r) {

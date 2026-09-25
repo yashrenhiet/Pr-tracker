@@ -1,6 +1,9 @@
 package io.prtracker.review;
 
 import java.time.OffsetDateTime;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
 import java.util.List;
 import org.hibernate.query.criteria.HibernateCriteriaBuilder;
 import org.springframework.data.jpa.domain.Specification;
@@ -34,18 +37,18 @@ public record ReviewFilter(
       String who = reviewer.trim();
       spec =
           spec.and(
-              (root, query, cb) -> {
-                var hcb = (HibernateCriteriaBuilder) cb;
-                return hcb.or(
-                    hcb.collectionContains(root.get("internalReviewers"), who),
-                    hcb.collectionContains(root.get("platformReviewers"), who));
-              });
+              (root, query, cb) ->
+                  cb.or(
+                      arrayHas(cb, root.get("internalReviewers"), who),
+                      arrayHas(cb, root.get("platformReviewers"), who)));
     }
     if (createdFrom != null) {
-      spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), createdFrom));
+      var from = createdFrom.toInstant();
+      spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("createdAt"), from));
     }
     if (createdTo != null) {
-      spec = spec.and((root, query, cb) -> cb.lessThan(root.get("createdAt"), createdTo));
+      var to = createdTo.toInstant();
+      spec = spec.and((root, query, cb) -> cb.lessThan(root.get("createdAt"), to));
     }
     return spec;
   }
@@ -53,6 +56,19 @@ public record ReviewFilter(
   private static Specification<PrReview> equalsIgnoreCase(String field, String value) {
     String needle = value.trim().toLowerCase();
     return (root, query, cb) -> cb.equal(cb.lower(root.get(field)), needle);
+  }
+
+  /**
+   * True when {@code value} is an element of the array {@code column}.
+   *
+   * <p>Not Hibernate's {@code collectionContains}: it binds the value as {@code varchar[]}, and
+   * Postgres has no {@code text[] @> varchar[]} operator. Hibernate's {@code array_position} takes
+   * {@code anycompatible} and returns 0, not NULL, when absent (it wraps the call in {@code
+   * coalesce(..., 0)}), hence {@code > 0}. The value is bound as a parameter, not inlined.
+   */
+  private static Predicate arrayHas(CriteriaBuilder cb, Expression<?> column, String value) {
+    var bound = ((HibernateCriteriaBuilder) cb).value(value);
+    return cb.greaterThan(cb.function("array_position", Integer.class, column, bound), 0);
   }
 
   private static boolean hasText(String value) {

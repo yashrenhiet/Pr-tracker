@@ -18,9 +18,18 @@ prTracker/
 ## Prerequisites
 
 - Java 21, Maven 3.9+
-- A container runtime: **Podman** (recommended, no licence needed) or Docker
+- PostgreSQL 16, either installed locally or in a container (Podman or Docker)
 
-### Podman setup (macOS, one time)
+### Option A: local PostgreSQL (macOS, simplest)
+
+```bash
+brew install postgresql@16 && brew services start postgresql@16
+createuser -s prtracker
+createdb -O prtracker prtracker        # app database
+createdb -O prtracker prtracker_test   # throwaway database for tests (wiped on every run)
+```
+
+### Option B: Podman (macOS, one time)
 
 ```bash
 brew install podman podman-compose
@@ -43,7 +52,7 @@ test containers are not reaped if the JVM is killed. Remove them with `podman co
 
 ```bash
 cp .env.example .env                 # then set POSTGRES_PASSWORD / DB_PASSWORD
-podman-compose up -d postgres        # or: docker compose up -d postgres
+podman-compose up -d postgres        # skip if using local PostgreSQL (option A)
 cd backend
 set -a && source ../.env && set +a   # export DB_* for the app
 mvn spring-boot:run                  # Flyway creates the schema on startup
@@ -53,17 +62,26 @@ curl localhost:8081/actuator/health
 ## Tests
 
 ```bash
-cd backend && mvn test
+cd backend
+TEST_DB_URL=jdbc:postgresql://localhost:5432/prtracker_test mvn test   # option A
+mvn test                                                              # option B (Testcontainers)
 ```
 
-Unit tests always run. The API and schema tests use Testcontainers to start a throwaway
-PostgreSQL. **Without a reachable container runtime they are skipped, not passed.** Check
-`target/surefire-reports` if in doubt.
+Unit tests always run. The API and schema tests need PostgreSQL:
+
+- **`TEST_DB_URL` set** (plus optional `TEST_DB_USERNAME`, default `prtracker`, and
+  `TEST_DB_PASSWORD`): the tests use that database, and **drop and recreate its `public` schema
+  first**. Only point it at a throwaway database.
+- **Otherwise**, Testcontainers starts a throwaway PostgreSQL if a container runtime is reachable.
+- **Neither available:** those tests are skipped, not passed. Check `target/surefire-reports` if
+  in doubt.
 
 ## API
 
 All endpoints are under `/api`. Errors use [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)
-problem JSON (`{"status":409,"detail":"..."}`).
+problem JSON (`{"status":409,"detail":"..."}`). Validation errors (400) also list each failed
+field: `"errors":[{"field":"email","message":"must be a well-formed email address"}]`.
+Timestamps are UTC ISO-8601 instants (`2026-09-25T13:43:18.809Z`).
 
 ### Reviews
 
