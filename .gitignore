@@ -1,0 +1,25 @@
+# Secrets — never commit real keys. Copy .env.example to .env instead.
+.env
+.env.*
+!.env.example
+
+# Local registry / mirror config (keep private mirrors out of the repo)
+.npmrc
+.mvn/settings.xml
+
+# Java / Maven
+target/
+*.class
+*.log
+
+# Node
+node_modules/
+dist/
+dist-server/
+coverage/
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
