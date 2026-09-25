@@ -2,19 +2,20 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { useGrantComponentMutation, useListComponentsQuery, useRevokeComponentMutation } from "../../store/api";
 import type { ReviewerResponse } from "../../types";
-import { Button } from "../../components/ui";
+import { Button, useToast } from "../../components/ui";
 import styles from "./styles.module.css";
 
 export interface ReviewerComponentsProps {
   reviewer: ReviewerResponse;
 }
 
-/** The chip list of granted components plus the small "grant another" form, for one reviewer row. */
+/** The chip list of granted components plus the small "grant another" form, for one reviewer card. */
 export function ReviewerComponents({ reviewer }: ReviewerComponentsProps) {
   const [draft, setDraft] = useState("");
   const { data: allComponents = [] } = useListComponentsQuery();
   const [grant, { isLoading: isGranting }] = useGrantComponentMutation();
   const [revoke] = useRevokeComponentMutation();
+  const { notify } = useToast();
 
   async function handleGrant(event: React.FormEvent) {
     event.preventDefault();
@@ -22,13 +23,25 @@ export function ReviewerComponents({ reviewer }: ReviewerComponentsProps) {
     if (!component) {
       return;
     }
-    await grant({ id: reviewer.id, component }).unwrap();
-    setDraft("");
+    try {
+      await grant({ id: reviewer.id, component }).unwrap();
+      setDraft("");
+    } catch {
+      notify("error", `Couldn't grant "${component}" to ${reviewer.name}.`);
+    }
+  }
+
+  async function handleRevoke(component: string) {
+    try {
+      await revoke({ id: reviewer.id, component }).unwrap();
+    } catch {
+      notify("error", `Couldn't revoke "${component}" from ${reviewer.name}.`);
+    }
   }
 
   return (
     <div>
-      {reviewer.components.length > 0 && (
+      {reviewer.components.length > 0 ? (
         <ul className={styles.chips}>
           {reviewer.components.map((component) => (
             <li key={component} className={styles.chip}>
@@ -36,7 +49,7 @@ export function ReviewerComponents({ reviewer }: ReviewerComponentsProps) {
               <button
                 type="button"
                 className={styles.chipRemove}
-                onClick={() => revoke({ id: reviewer.id, component })}
+                onClick={() => handleRevoke(component)}
                 aria-label={`Revoke ${component} from ${reviewer.name}`}
               >
                 <X size={12} aria-hidden="true" />
@@ -44,6 +57,8 @@ export function ReviewerComponents({ reviewer }: ReviewerComponentsProps) {
             </li>
           ))}
         </ul>
+      ) : (
+        <p className={styles.noComponents}>No components granted yet.</p>
       )}
       <form className={styles.grantForm} onSubmit={handleGrant}>
         <label className="visually-hidden" htmlFor={`grant-${reviewer.id}`}>
@@ -55,14 +70,14 @@ export function ReviewerComponents({ reviewer }: ReviewerComponentsProps) {
           list={`components-${reviewer.id}`}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Component"
+          placeholder="Grant a component..."
         />
         <datalist id={`components-${reviewer.id}`}>
           {allComponents.map((c) => (
             <option key={c} value={c} />
           ))}
         </datalist>
-        <Button type="submit" variant="ghost" loading={isGranting}>
+        <Button type="submit" variant="secondary" loading={isGranting}>
           Grant
         </Button>
       </form>

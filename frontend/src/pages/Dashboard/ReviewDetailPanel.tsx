@@ -9,12 +9,14 @@ import { fieldError, problemDetail } from "../../api/problemDetail";
 import { PR_STATUSES, STATUS_LABELS, type PrStatus, type ReviewResponse } from "../../types";
 import {
   Button,
+  Card,
   Drawer,
   KeyValueEditor,
   Select,
   TagInput,
   TextArea,
   TextField,
+  useToast,
 } from "../../components/ui";
 
 export interface ReviewDetailPanelProps {
@@ -22,7 +24,11 @@ export interface ReviewDetailPanelProps {
   onClose: () => void;
 }
 
+const sectionStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: "var(--space-3)", padding: "var(--space-4)" };
+const sectionHeadingStyle: React.CSSProperties = { fontSize: 14, margin: 0 };
+
 export function ReviewDetailPanel({ review, onClose }: ReviewDetailPanelProps) {
+  const { notify } = useToast();
   const [component, setComponent] = useState(review.component);
   const [raisedBy, setRaisedBy] = useState(review.raisedBy);
   const [context, setContext] = useState(review.context ?? "");
@@ -46,9 +52,10 @@ export function ReviewDetailPanel({ review, onClose }: ReviewDetailPanelProps) {
         id: review.id,
         body: { component, raisedBy, context, internalReviewers, platformReviewers, metadata, version: review.version },
       }).unwrap();
+      notify("success", "PR details saved.");
       onClose();
     } catch {
-      // Surfaced via `saveError` below.
+      notify("error", "Couldn't save PR details — see the error above.");
     }
   }
 
@@ -56,8 +63,9 @@ export function ReviewDetailPanel({ review, onClose }: ReviewDetailPanelProps) {
     event.preventDefault();
     try {
       await changeStatus({ id: review.id, body: { status, blockReason: blockReason || undefined } }).unwrap();
+      notify("success", `Status updated to ${STATUS_LABELS[status]}.`);
     } catch {
-      // Surfaced via `statusError` below.
+      notify("error", "Couldn't update status — see the error above.");
     }
   }
 
@@ -65,15 +73,20 @@ export function ReviewDetailPanel({ review, onClose }: ReviewDetailPanelProps) {
     if (!window.confirm(`Stop tracking ${review.prUrl}? This cannot be undone.`)) {
       return;
     }
-    await deleteReview(review.id).unwrap();
-    onClose();
+    try {
+      await deleteReview(review.id).unwrap();
+      notify("success", "Stopped tracking that PR.");
+      onClose();
+    } catch {
+      notify("error", "Couldn't stop tracking that PR. Try again.");
+    }
   }
 
   return (
     <Drawer title={`PR #${review.id}`} onClose={onClose}>
-      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
-        <section aria-labelledby="status-heading" style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-          <h3 id="status-heading" style={{ fontSize: 14 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+        <Card style={sectionStyle}>
+          <h3 id="status-heading" style={sectionHeadingStyle}>
             Status
           </h3>
           {statusError && (
@@ -81,7 +94,7 @@ export function ReviewDetailPanel({ review, onClose }: ReviewDetailPanelProps) {
               {problemDetail(statusError)}
             </p>
           )}
-          <form onSubmit={handleStatusChange} style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+          <form onSubmit={handleStatusChange} aria-labelledby="status-heading" style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
             <Select
               label="Current status"
               value={status}
@@ -99,15 +112,14 @@ export function ReviewDetailPanel({ review, onClose }: ReviewDetailPanelProps) {
               />
             )}
             <Button type="submit" variant="secondary" loading={isChangingStatus}>
-              Update status
+              Update status only
             </Button>
           </form>
-        </section>
+        </Card>
 
-        <hr style={{ border: "none", borderTop: "1px solid var(--color-border)" }} />
-
-        <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
-          <h3 style={{ fontSize: 14 }}>Details</h3>
+        <Card style={sectionStyle}>
+          <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
+          <h3 style={sectionHeadingStyle}>Details</h3>
           {saveError && (
             <p role="alert" style={{ color: "var(--color-danger)", fontSize: 13 }}>
               {problemDetail(saveError)}
@@ -158,11 +170,12 @@ export function ReviewDetailPanel({ review, onClose }: ReviewDetailPanelProps) {
                 Cancel
               </Button>
               <Button type="submit" variant="primary" loading={isSaving}>
-                Save changes
+                Save details
               </Button>
             </div>
           </div>
-        </form>
+          </form>
+        </Card>
       </div>
     </Drawer>
   );

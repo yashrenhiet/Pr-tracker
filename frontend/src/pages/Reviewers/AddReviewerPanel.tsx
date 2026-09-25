@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useCreateReviewerMutation } from "../../store/api";
 import { fieldError, problemDetail } from "../../api/problemDetail";
-import { Button, Drawer, TextField } from "../../components/ui";
+import { Button, Drawer, TextField, useToast } from "../../components/ui";
 
 export interface AddReviewerPanelProps {
   onClose: () => void;
@@ -12,14 +12,16 @@ export function AddReviewerPanel({ onClose }: AddReviewerPanelProps) {
   const [email, setEmail] = useState("");
   const [handle, setHandle] = useState("");
   const [createReviewer, { isLoading, error }] = useCreateReviewerMutation();
+  const { notify } = useToast();
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     try {
       await createReviewer({ name, email, handle }).unwrap();
+      notify("success", `${name} added as a reviewer.`);
       onClose();
     } catch {
-      // Surfaced via `error` below.
+      notify("error", "Couldn't add that reviewer — see the error above.");
     }
   }
 

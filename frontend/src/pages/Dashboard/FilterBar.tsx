@@ -1,5 +1,6 @@
-import { PR_STATUSES, STATUS_LABELS, type PrStatus, type ReviewFilter } from "../../types";
-import { Button } from "../../components/ui";
+import { ArrowDownWideNarrow, ArrowUpWideNarrow, ChevronDown, Search, X } from "lucide-react";
+import { type PrStatus, type ReviewFilter } from "../../types";
+import { Button, Card, StatusMultiSelect } from "../../components/ui";
 import styles from "./FilterBar.module.css";
 
 export interface FilterBarProps {
@@ -16,98 +17,103 @@ const SORT_OPTIONS: { value: NonNullable<ReviewFilter["sort"]>; label: string }[
   { value: "component", label: "Component" },
 ];
 
-export function FilterBar({ filter, onChange, onClear }: FilterBarProps) {
-  const selectedStatuses = new Set(filter.status ?? []);
+const ACTIVE_FILTER_KEYS: (keyof ReviewFilter)[] = ["component", "raisedBy", "reviewer", "status"];
 
-  function toggleStatus(status: PrStatus) {
-    const next = new Set(selectedStatuses);
-    if (next.has(status)) {
-      next.delete(status);
-    } else {
-      next.add(status);
-    }
-    onChange({ status: next.size > 0 ? Array.from(next) : undefined, page: 0 });
-  }
+function SearchField({
+  id,
+  label,
+  value,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className={styles.searchField}>
+      <label htmlFor={id}>{label}</label>
+      <div className={styles.inputWrap}>
+        <Search size={14} aria-hidden="true" />
+        <input id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder="Any" />
+      </div>
+    </div>
+  );
+}
+
+export function FilterBar({ filter, onChange, onClear }: FilterBarProps) {
+  const direction = filter.direction ?? "DESC";
+  const hasActiveFilters = ACTIVE_FILTER_KEYS.some((key) => {
+    const value = filter[key];
+    return Array.isArray(value) ? value.length > 0 : Boolean(value);
+  });
 
   return (
-    <div className={styles.bar}>
-      <div className={styles.field}>
-        <label htmlFor="filter-component">Component</label>
-        <input
-          id="filter-component"
-          value={filter.component ?? ""}
-          onChange={(e) => onChange({ component: e.target.value || undefined, page: 0 })}
-          placeholder="Any"
-        />
-      </div>
+    <Card className={styles.bar}>
+      <SearchField
+        id="filter-component"
+        label="Component"
+        value={filter.component ?? ""}
+        onChange={(v) => onChange({ component: v || undefined, page: 0 })}
+      />
+      <SearchField
+        id="filter-raisedBy"
+        label="Raised by"
+        value={filter.raisedBy ?? ""}
+        onChange={(v) => onChange({ raisedBy: v || undefined, page: 0 })}
+      />
+      <SearchField
+        id="filter-reviewer"
+        label="Reviewer"
+        value={filter.reviewer ?? ""}
+        onChange={(v) => onChange({ reviewer: v || undefined, page: 0 })}
+      />
 
-      <div className={styles.field}>
-        <label htmlFor="filter-raisedBy">Raised by</label>
-        <input
-          id="filter-raisedBy"
-          value={filter.raisedBy ?? ""}
-          onChange={(e) => onChange({ raisedBy: e.target.value || undefined, page: 0 })}
-          placeholder="Any"
-        />
-      </div>
-
-      <div className={styles.field}>
-        <label htmlFor="filter-reviewer">Reviewer</label>
-        <input
-          id="filter-reviewer"
-          value={filter.reviewer ?? ""}
-          onChange={(e) => onChange({ reviewer: e.target.value || undefined, page: 0 })}
-          placeholder="Any"
-        />
-      </div>
-
-      <fieldset className={styles.statusGroup}>
-        <legend>Status</legend>
-        <div className={styles.statusOptions}>
-          {PR_STATUSES.map((status) => (
-            <label key={status} className={styles.statusOption}>
-              <input
-                type="checkbox"
-                checked={selectedStatuses.has(status)}
-                onChange={() => toggleStatus(status)}
-              />
-              {STATUS_LABELS[status]}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <div className={styles.field}>
-        <label htmlFor="filter-sort">Sort by</label>
-        <select
-          id="filter-sort"
-          value={filter.sort ?? "updatedAt"}
-          onChange={(e) => onChange({ sort: e.target.value as ReviewFilter["sort"] })}
-        >
-          {SORT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className={styles.field}>
-        <label htmlFor="filter-direction">Direction</label>
-        <select
-          id="filter-direction"
-          value={filter.direction ?? "DESC"}
-          onChange={(e) => onChange({ direction: e.target.value as ReviewFilter["direction"] })}
-        >
-          <option value="DESC">Newest first</option>
-          <option value="ASC">Oldest first</option>
-        </select>
-      </div>
+      <StatusMultiSelect
+        selected={filter.status ?? []}
+        onChange={(status: PrStatus[]) => onChange({ status: status.length > 0 ? status : undefined, page: 0 })}
+      />
 
       <div className={styles.spacer} />
-      <Button type="button" variant="ghost" onClick={onClear}>
-        Clear filters
-      </Button>
-    </div>
+
+      <div className={styles.sortField}>
+        <label htmlFor="filter-sort">Sort by</label>
+        <div className={styles.selectWrap}>
+          <select
+            id="filter-sort"
+            value={filter.sort ?? "updatedAt"}
+            onChange={(e) => onChange({ sort: e.target.value as ReviewFilter["sort"] })}
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={14} aria-hidden="true" />
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className={styles.directionButton}
+        onClick={() => onChange({ direction: direction === "DESC" ? "ASC" : "DESC" })}
+        aria-label={direction === "DESC" ? "Sorted newest first, click for oldest first" : "Sorted oldest first, click for newest first"}
+      >
+        {direction === "DESC" ? (
+          <ArrowDownWideNarrow size={16} aria-hidden="true" />
+        ) : (
+          <ArrowUpWideNarrow size={16} aria-hidden="true" />
+        )}
+        {direction === "DESC" ? "Newest" : "Oldest"}
+      </button>
+
+      {hasActiveFilters && (
+        <Button type="button" variant="ghost" onClick={onClear}>
+          <X size={14} aria-hidden="true" />
+          Clear
+        </Button>
+      )}
+    </Card>
   );
 }

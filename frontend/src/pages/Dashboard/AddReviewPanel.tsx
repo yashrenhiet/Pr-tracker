@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useCreateReviewMutation, useListComponentsQuery } from "../../store/api";
 import { fieldError, problemDetail } from "../../api/problemDetail";
-import { Button, Drawer, KeyValueEditor, TagInput, TextArea, TextField } from "../../components/ui";
+import { Button, Drawer, KeyValueEditor, TagInput, TextArea, TextField, useToast } from "../../components/ui";
 
 export interface AddReviewPanelProps {
   onClose: () => void;
@@ -19,6 +19,7 @@ export function AddReviewPanel({ onClose, onCreated }: AddReviewPanelProps) {
 
   const { data: components = [] } = useListComponentsQuery();
   const [createReview, { isLoading, error }] = useCreateReviewMutation();
+  const { notify } = useToast();
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -32,9 +33,10 @@ export function AddReviewPanel({ onClose, onCreated }: AddReviewPanelProps) {
         platformReviewers,
         metadata,
       }).unwrap();
+      notify("success", "PR is now being tracked.");
       onCreated();
     } catch {
-      // The error is already in `error` from the mutation hook; nothing else to do.
+      notify("error", "Couldn't track that PR — see the error above.");
     }
   }
 

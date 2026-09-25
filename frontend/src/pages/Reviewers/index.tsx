@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Users } from "lucide-react";
 import { useDeleteReviewerMutation, useListReviewersQuery } from "../../store/api";
-import { Button, Spinner } from "../../components/ui";
+import { Button, Card, Spinner, useToast } from "../../components/ui";
 import { AddReviewerPanel } from "./AddReviewerPanel";
 import { ReviewerComponents } from "./ReviewerComponents";
 import styles from "./styles.module.css";
@@ -10,12 +10,18 @@ export function ReviewersPage() {
   const [isAdding, setIsAdding] = useState(false);
   const { data: reviewers, isLoading } = useListReviewersQuery();
   const [deleteReviewer] = useDeleteReviewerMutation();
+  const { notify } = useToast();
 
   async function handleDelete(id: number, name: string) {
     if (!window.confirm(`Remove ${name} as a reviewer? Their component grants go with them.`)) {
       return;
     }
-    await deleteReviewer(id).unwrap();
+    try {
+      await deleteReviewer(id).unwrap();
+      notify("success", `Removed ${name}.`);
+    } catch {
+      notify("error", `Couldn't remove ${name}. Try again.`);
+    }
   }
 
   return (
@@ -29,48 +35,41 @@ export function ReviewersPage() {
       </div>
 
       {isLoading ? (
-        <div className={styles.emptyState}>
+        <Card className={styles.emptyState}>
           <Spinner label="Loading reviewers" />
-        </div>
+        </Card>
       ) : !reviewers || reviewers.length === 0 ? (
-        <div className={styles.emptyState}>No reviewers yet.</div>
+        <Card className={styles.emptyState}>
+          <Users size={32} aria-hidden="true" />
+          <span>No reviewers yet. Add one and grant them the components they review.</span>
+          <Button type="button" variant="primary" onClick={() => setIsAdding(true)}>
+            Add reviewer
+          </Button>
+        </Card>
       ) : (
-        <table className={styles.table}>
-          <caption className="visually-hidden">Reviewers and their granted components</caption>
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Email</th>
-              <th scope="col">Handle</th>
-              <th scope="col">Components</th>
-              <th scope="col">
-                <span className="visually-hidden">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {reviewers.map((reviewer) => (
-              <tr key={reviewer.id}>
-                <td>{reviewer.name}</td>
-                <td>{reviewer.email}</td>
-                <td>{reviewer.handle}</td>
-                <td>
-                  <ReviewerComponents reviewer={reviewer} />
-                </td>
-                <td>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => handleDelete(reviewer.id, reviewer.name)}
-                    aria-label={`Remove ${reviewer.name}`}
-                  >
-                    <Trash2 size={16} aria-hidden="true" />
-                  </Button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className={styles.list}>
+          {reviewers.map((reviewer) => (
+            <Card key={reviewer.id} className={styles.reviewerCard}>
+              <div className={styles.header}>
+                <div className={styles.identity}>
+                  <span className={styles.name}>{reviewer.name}</span>
+                  <span className={styles.handle}>@{reviewer.handle}</span>
+                  <span className={styles.email}>{reviewer.email}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => handleDelete(reviewer.id, reviewer.name)}
+                  aria-label={`Remove ${reviewer.name}`}
+                >
+                  <Trash2 size={16} aria-hidden="true" />
+                </Button>
+              </div>
+              <span className={styles.componentsLabel}>Components</span>
+              <ReviewerComponents reviewer={reviewer} />
+            </Card>
+          ))}
+        </div>
       )}
 
       {isAdding && <AddReviewerPanel onClose={() => setIsAdding(false)} />}

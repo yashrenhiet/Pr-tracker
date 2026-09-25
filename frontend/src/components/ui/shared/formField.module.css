@@ -21,6 +21,25 @@
   color: var(--color-text);
 }
 
+.selectWrapper {
+  position: relative;
+}
+
+.selectControl {
+  appearance: none;
+  width: 100%;
+  padding-right: 34px;
+}
+
+.selectChevron {
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
 .control:disabled {
   background: var(--color-neutral-bg);
   color: var(--color-text-muted);

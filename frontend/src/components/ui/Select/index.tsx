@@ -1,4 +1,5 @@
 import { useId, type SelectHTMLAttributes } from "react";
+import { ChevronDown } from "lucide-react";
 import shared from "../shared/formField.module.css";
 import { FieldMessage } from "../shared/FieldMessage";
 import { describedBy } from "../shared/describedBy";
@@ -36,21 +37,26 @@ export function Select({
         {label}
         {required && <span aria-hidden="true"> *</span>}
       </label>
-      <select
-        id={fieldId}
-        className={[shared.control, error && shared.invalid, className].filter(Boolean).join(" ")}
-        required={required}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy(fieldId, error, hint)}
-        {...rest}
-      >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <div className={shared.selectWrapper}>
+        <select
+          id={fieldId}
+          className={[shared.control, shared.selectControl, error && shared.invalid, className]
+            .filter(Boolean)
+            .join(" ")}
+          required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy(fieldId, error, hint)}
+          {...rest}
+        >
+          {placeholder && <option value="">{placeholder}</option>}
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={16} className={shared.selectChevron} aria-hidden="true" />
+      </div>
       <FieldMessage fieldId={fieldId} error={error} hint={hint} />
     </div>
   );

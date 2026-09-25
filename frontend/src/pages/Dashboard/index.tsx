@@ -2,13 +2,35 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useListReviewsQuery } from "../../store/api";
 import type { ReviewFilter, ReviewResponse } from "../../types";
-import { Button } from "../../components/ui";
+import { Button, StatCard, StatCardRow } from "../../components/ui";
 import { FilterBar } from "./FilterBar";
 import { ReviewsTable } from "./ReviewsTable";
 import { AddReviewPanel } from "./AddReviewPanel";
 import { ReviewDetailPanel } from "./ReviewDetailPanel";
 
 const DEFAULT_FILTER: ReviewFilter = { page: 0, size: 20, sort: "updatedAt", direction: "DESC" };
+
+/** A cheap way to get one number without a dedicated stats endpoint: ask for one row and read
+ * `totalElements`. RTK Query caches identical queries, so this doesn't multiply real traffic. */
+function useReviewCount(status?: ReviewFilter["status"]): number | undefined {
+  return useListReviewsQuery({ status, size: 1 }).data?.totalElements;
+}
+
+function SummaryStats() {
+  const total = useReviewCount();
+  const readyForReview = useReviewCount(["READY_FOR_REVIEW"]);
+  const blocked = useReviewCount(["BLOCKED"]);
+  const merged = useReviewCount(["MERGED"]);
+
+  return (
+    <StatCardRow>
+      <StatCard label="Total tracked" value={total} tone="neutral" />
+      <StatCard label="Ready for review" value={readyForReview} tone="info" />
+      <StatCard label="Blocked" value={blocked} tone="danger" />
+      <StatCard label="Merged" value={merged} tone="success" />
+    </StatCardRow>
+  );
+}
 
 export function DashboardPage() {
   const [filter, setFilter] = useState<ReviewFilter>(DEFAULT_FILTER);
@@ -31,6 +53,8 @@ export function DashboardPage() {
         </Button>
       </div>
 
+      <SummaryStats />
+
       <FilterBar filter={filter} onChange={patchFilter} onClear={() => setFilter(DEFAULT_FILTER)} />
 
       <ReviewsTable
@@ -38,6 +62,7 @@ export function DashboardPage() {
         isLoading={isFetching}
         onEdit={setEditing}
         onPageChange={(page) => patchFilter({ page })}
+        onTrackFirst={() => setIsAdding(true)}
       />
 
       {isAdding && <AddReviewPanel onClose={() => setIsAdding(false)} onCreated={() => setIsAdding(false)} />}
