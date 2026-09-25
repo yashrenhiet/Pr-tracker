@@ -2,7 +2,7 @@
 
 Track pull requests across repositories and (soon) run AI-assisted code reviews on them.
 
-> **Status:** phase 2. The backend CRUD API is in place; the dashboard and the review engine are
+> **Status:** phase 3. Backend CRUD API and the dashboard UI are in place; the AI review engine is
 > not built yet. See [Roadmap](#roadmap).
 
 ## Layout
@@ -10,7 +10,7 @@ Track pull requests across repositories and (soon) run AI-assisted code reviews 
 ```
 prTracker/
 ├── backend/             Spring Boot 4 (Java 21) + PostgreSQL + Flyway
-├── frontend/            React + Vite dashboard with an Express BFF   (phase 3)
+├── frontend/            React + Vite dashboard, Redux Toolkit (RTK Query), Express BFF
 ├── docker-compose.yml   Local PostgreSQL (works with Docker or Podman)
 └── .env.example         Configuration template
 ```
@@ -128,6 +128,32 @@ Statuses: `READY_FOR_REVIEW`, `REVIEW_IN_PROGRESS`, `COMMENTS_ADDED`, `COMMENTS_
 
 Emails, handles and component grants are unique ignoring case.
 
+## Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev              # Vite dev server on :5173, proxies /api to the backend on :8081
+```
+
+Open http://localhost:5173 once the backend (see Quick start above) is running. There are two
+pages: the reviews dashboard (filter, add, edit, change status, delete) and reviewer management
+(add reviewers, grant/revoke the components they can see).
+
+A small Express BFF (`frontend/server`) proxies `/api` to the backend and serves the built app as a
+single-page app, for a production-style run instead of the Vite dev server:
+
+```bash
+npm run build          # frontend -> frontend/dist
+npm run server:build   # BFF -> frontend/dist-server
+BACKEND_URL=http://localhost:8081 PORT=3000 npm run server:start
+```
+
+The UI kit (`src/components/ui`) is plain CSS Modules over a small token palette in
+`src/styles/tokens.css` — no external component library. Server state (reviews, reviewers,
+components) is owned by one RTK Query API slice (`src/store/api.ts`); there's no hand-rolled
+loading/error state to keep in sync.
+
 ## Data model
 
 | Table                | Purpose                                                      |
@@ -140,7 +166,7 @@ Emails, handles and component grants are unique ignoring case.
 
 1. Scaffold: repo, docker-compose, Flyway schema (done)
 2. Backend CRUD API: reviews, reviewers, components (done)
-3. Frontend dashboard + BFF
+3. Frontend dashboard + BFF (done)
 4. Review engine: Anthropic/OpenAI via Spring AI, GitHub MCP with REST fallback, scheduler
 5. Extras: verification pass, missed-findings audit, staged reviews
 
