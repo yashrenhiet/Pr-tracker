@@ -1,5 +1,7 @@
 package io.prtracker.common;
 
+import io.prtracker.aireview.AiReviewAlreadyRunningException;
+import io.prtracker.aireview.AiReviewNotConfiguredException;
 import java.util.List;
 import java.util.Map;
 import org.hibernate.exception.ConstraintViolationException;
@@ -49,6 +51,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
   ProblemDetail staleUpdate(ObjectOptimisticLockingFailureException ex) {
     return ProblemDetail.forStatusAndDetail(
         HttpStatus.CONFLICT, "Record was modified by someone else. Reload and try again.");
+  }
+
+  @ExceptionHandler(AiReviewNotConfiguredException.class)
+  ProblemDetail aiReviewNotConfigured(AiReviewNotConfiguredException ex) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
+  }
+
+  @ExceptionHandler(AiReviewAlreadyRunningException.class)
+  ProblemDetail aiReviewAlreadyRunning(AiReviewAlreadyRunningException ex) {
+    return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.getMessage());
   }
 
   @ExceptionHandler(DataIntegrityViolationException.class)

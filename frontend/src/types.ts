@@ -106,6 +106,35 @@ export interface PageResponse<T> {
 export type SortField = "createdAt" | "updatedAt" | "status" | "raisedBy" | "component";
 export type SortDirection = "ASC" | "DESC";
 
+/** Mirrors `io.prtracker.aireview.AiReviewDtos` on the backend. */
+export type AiReviewRunStatus = "RUNNING" | "SUCCEEDED" | "FAILED";
+export type AiReviewVerdict = "APPROVE" | "REQUEST_CHANGES" | "COMMENT";
+
+export interface AiReviewRunResponse {
+  id: number;
+  reviewId: number;
+  status: AiReviewRunStatus;
+  verdict: AiReviewVerdict | null;
+  summary: string | null;
+  commentsPosted: number;
+  commentsRejected: number;
+  provider: string;
+  model: string;
+  dryRun: boolean;
+  error: string | null;
+  startedAt: string;
+  completedAt: string | null;
+}
+
+/** Whether the AI review feature is usable on this server. Never carries the API key or GitHub token. */
+export interface AiReviewConfigResponse {
+  enabled: boolean;
+  provider: string;
+  model: string;
+  dryRun: boolean;
+  githubConfigured: boolean;
+}
+
 /** Query params for `GET /reviews`. All optional; omitted means "no filter". */
 export interface ReviewFilter {
   status?: PrStatus[];

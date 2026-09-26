@@ -14,6 +14,7 @@ infrastructure, stores its data in PostgreSQL, and exposes everything through a 
 - [How it works](#how-it-works)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
+- [AI code review](#ai-code-review)
 - [Running in production](#running-in-production)
 - [Testing](#testing)
 - [REST API](#rest-api)
@@ -40,6 +41,17 @@ infrastructure, stores its data in PostgreSQL, and exposes everything through a 
 
 - Keep a directory of reviewers (name, email, GitHub handle).
 - Assign each reviewer the components they cover. Component names are created on first use.
+
+**AI code review** *(optional, off by default — see [AI code review](#ai-code-review))*
+
+- Have an LLM (OpenAI or Anthropic — bring your own API key) review a tracked PR's diff and post
+  the comments straight to GitHub, on demand or on a schedule.
+- Every comment is checked against the actual diff before it's posted or stored: a comment on a
+  file or line the model invented is dropped, not trusted.
+- Every run — succeeded, failed, or a dry run — is kept, with the model's summary, verdict and
+  comment counts, so you can see what the bot did and why.
+- **Dry-run by default.** Turning the feature on shows you what it *would* post before it posts
+  anything for real.
 
 **Built to be relied on**
 
@@ -153,6 +165,69 @@ All settings are environment variables. `.env.example` lists them with working d
 | `POSTGRES_USER`     | compose    | `prtracker`                                 | User created by the container      |
 | `POSTGRES_PASSWORD` | compose    | *(required)*                                | Password for that user             |
 | `POSTGRES_PORT`     | compose    | `5432`                                      | Host port for the container        |
+
+See [AI code review](#ai-code-review) for the `AI_REVIEW_*` variables — all optional, and the
+feature is fully disabled unless you set them.
+
+## AI code review
+
+An optional engine that reviews a tracked PR's diff with an LLM and posts the review straight to
+GitHub. Disabled by default; tracking a PR never calls out to a model or GitHub unless you turn
+this on.
+
+**Pipeline**, run per PR, isolated from every other PR's runs:
+
+```
+fetch diff (GitHub) ──► prompt the model ──► validate its reply ──► post to GitHub ──► record the run
+```
+
+1. The diff is fetched from GitHub (or GitHub Enterprise) using `AI_REVIEW_GITHUB_TOKEN`.
+2. The configured model is asked to return a summary, a verdict, and a list of inline comments as JSON.
+3. **Every comment is validated against the diff it was shown** before anything is trusted: a
+   comment on a file or line that isn't actually part of the diff is dropped (and logged), not
+   posted. An unrecognised severity or verdict is normalised rather than rejecting the whole review.
+4. Unless `AI_REVIEW_DRY_RUN=true` (the default), the surviving comments are posted to GitHub as a
+   single review, and the tracked PR's status is updated: `BOT_REVIEW_COMPLETED` if it left
+   comments, `READY_FOR_PLATFORM_REVIEW` if it approved with none, or `BOT_REVIEW_REJECTED` if the
+   pipeline failed. This only happens to PRs still waiting on a review — a bot run finishing after
+   a human already merged, closed or approved a PR never touches its status.
+5. Every attempt — success, failure, or dry run — is kept as its own row (`ai_review_run`), so
+   there's a full history of what the bot did, not just its latest verdict.
+
+**Setup:**
+
+```bash
+AI_REVIEW_ENABLED=true
+AI_REVIEW_PROVIDER=openai            # or: anthropic
+AI_REVIEW_API_KEY=sk-...             # your OpenAI or Anthropic key
+AI_REVIEW_GITHUB_TOKEN=ghp_...       # needs to read PRs, and (once out of dry-run) post reviews
+```
+
+| Variable                     | Default                | Purpose                                                          |
+|-------------------------------|-------------------------|-------------------------------------------------------------------|
+| `AI_REVIEW_ENABLED`           | `false`                 | Master switch. Everything else is inert while this is `false`.    |
+| `AI_REVIEW_PROVIDER`          | `openai`                | `openai` or `anthropic`                                           |
+| `AI_REVIEW_API_KEY`           | *(none)*                | API key for the chosen provider                                   |
+| `AI_REVIEW_MODEL`             | *(provider default)*    | e.g. `gpt-4o-mini`, `claude-sonnet-4-5-20250929`                  |
+| `AI_REVIEW_BASE_URL`          | *(provider's public API)* | Point at a proxy or self-hosted OpenAI-/Anthropic-compatible gateway |
+| `AI_REVIEW_GITHUB_TOKEN`      | *(none)*                | PAT with PR read (and, out of dry-run, write) access               |
+| `AI_REVIEW_DRY_RUN`           | `true`                  | `true`: generate the review but don't post it or move the PR's status |
+| `AI_REVIEW_TIMEOUT_SECONDS`   | `120`                   | Read timeout for the model call                                   |
+| `AI_REVIEW_MAX_DIFF_CHARS`    | `60000`                 | Diffs larger than this are truncated at the last complete file    |
+| `AI_REVIEW_SCHEDULER_ENABLED` | `false`                 | Automatically review PRs in `READY_FOR_REVIEW` or `COMMENTS_ADDRESSED` |
+| `AI_REVIEW_SCHEDULER_CRON`    | `0 */10 * * * *`        | How often the scheduler checks for PRs due a review               |
+| `AI_REVIEW_SCHEDULER_BATCH_SIZE` | `5`                  | Max PRs reviewed per scheduler tick                                |
+
+**Trying it safely:** set `AI_REVIEW_ENABLED=true` and leave `AI_REVIEW_DRY_RUN` at its default
+(`true`). Trigger a review from a PR's detail panel (or `POST /api/reviews/{id}/ai-review`) and
+you'll get the model's summary, verdict and comments back without anything being posted to GitHub
+or the PR's status changing. Set `AI_REVIEW_DRY_RUN=false` once you're happy with what it produces.
+
+**Known limitation:** an oversized diff is truncated at the last file boundary that fits
+(`AI_REVIEW_MAX_DIFF_CHARS`), not split into multiple model calls — files past the cutoff simply
+aren't reviewed. This is a deliberate scope decision, not an oversight: chunking a diff across
+calls while keeping one coherent final review is real complexity that most PRs never need. Raise
+`AI_REVIEW_MAX_DIFF_CHARS` if you routinely review very large PRs.
 
 ## Running in production
 
@@ -312,6 +387,27 @@ curl 'localhost:8081/api/reviews?status=READY_FOR_REVIEW,BLOCKED&component=api&s
 
 Emails, handles and component assignments are unique, ignoring case.
 
+### AI review
+
+See [AI code review](#ai-code-review) for how the pipeline behaves. All endpoints return
+`503 Service Unavailable` if `AI_REVIEW_ENABLED` is not `true`, or the configured provider/GitHub
+token is missing.
+
+| Method | Path                              | Description                                                        |
+|--------|------------------------------------|---------------------------------------------------------------------|
+| `GET`  | `/ai-review/config`                | Whether the feature is enabled, and the active provider/model — no secrets |
+| `POST` | `/reviews/{id}/ai-review`          | Run the pipeline now and return its outcome. `409` if already running for this PR |
+| `GET`  | `/reviews/{id}/ai-review`          | The most recent run for this PR. `404` if it has never been reviewed |
+| `GET`  | `/reviews/{id}/ai-review/history`  | Every run for this PR, newest first                                |
+
+```bash
+curl -X POST localhost:8081/api/reviews/57/ai-review
+
+# {"id":3,"reviewId":57,"status":"SUCCEEDED","verdict":"REQUEST_CHANGES",
+#  "summary":"...","commentsPosted":2,"commentsRejected":0,"provider":"openai",
+#  "model":"gpt-4o-mini","dryRun":true,"error":null,"startedAt":"...","completedAt":"..."}
+```
+
 ### Errors
 
 Every error is an RFC 9457 problem document. Validation errors also list each field:
@@ -336,6 +432,7 @@ Every error is an RFC 9457 problem document. Validation errors also list each fi
 │       │   ├── review/              PRs: entity, filtering, status rules, URL normalisation
 │       │   ├── reviewer/            Reviewers and their component assignments
 │       │   ├── component/           Component listing
+│       │   ├── aireview/            AI review pipeline, GitHub client, LLM providers, scheduler
 │       │   └── common/              Error handling (RFC 9457), paging, input normalisation
 │       └── resources/db/migration/  Flyway SQL migrations
 ├── frontend/
@@ -355,10 +452,11 @@ Every error is an RFC 9457 problem document. Validation errors also list each fi
 ### Data model
 
 | Table                | Purpose                                                                |
-|----------------------|------------------------------------------------------------------------|
+|----------------------|--------------------------------------------------------------------------|
 | `pr_review`          | One row per tracked PR: status, reviewers, context, metadata, version  |
 | `reviewer`           | Reviewer directory                                                     |
 | `reviewer_component` | Which components each reviewer covers                                  |
+| `ai_review_run`      | One row per AI review attempt: verdict, summary, comment counts, errors |
 
 Statuses are stored as readable text guarded by a `CHECK` constraint, reviewer lists as
 PostgreSQL arrays, and free-form metadata as `jsonb`.

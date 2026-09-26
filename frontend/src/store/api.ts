@@ -1,6 +1,8 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { toQuery } from "../api/queryString";
 import type {
+  AiReviewConfigResponse,
+  AiReviewRunResponse,
   ChangeStatus,
   CreateReview,
   CreateReviewer,
@@ -37,7 +39,7 @@ async function syncReviewCache(
 export const api = createApi({
   reducerPath: "api",
   baseQuery: fetchBaseQuery({ baseUrl: "/api" }),
-  tagTypes: ["Review", "Reviewer", "Component"],
+  tagTypes: ["Review", "Reviewer", "Component", "AiReview"],
   endpoints: (builder) => ({
     listReviews: builder.query<PageResponse<ReviewResponse>, ReviewFilter>({
       query: (filter) => `/reviews${toQuery(filter)}`,
@@ -109,6 +111,32 @@ export const api = createApi({
       query: () => "/components",
       providesTags: [{ type: "Component", id: LIST }],
     }),
+
+    getAiReviewConfig: builder.query<AiReviewConfigResponse, void>({
+      query: () => "/ai-review/config",
+    }),
+    getAiReviewStatus: builder.query<AiReviewRunResponse, number>({
+      query: (reviewId) => `/reviews/${reviewId}/ai-review`,
+      providesTags: (_result, _error, reviewId) => [{ type: "AiReview", id: reviewId }],
+    }),
+    triggerAiReview: builder.mutation<AiReviewRunResponse, number>({
+      query: (reviewId) => ({ url: `/reviews/${reviewId}/ai-review`, method: "POST" }),
+      // A run can flip the tracked PR's own status (see AiReviewServiceImpl.transitionAfterSuccess),
+      // so both the AI-review cache and the review itself need to refresh.
+      onQueryStarted: async (reviewId, { queryFulfilled, dispatch }) => {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(api.util.upsertQueryData("getAiReviewStatus", reviewId, data));
+        } catch {
+          // Surfaced through the mutation hook's own `error`.
+        }
+      },
+      invalidatesTags: (_result, _error, reviewId) => [
+        { type: "AiReview", id: reviewId },
+        { type: "Review", id: reviewId },
+        { type: "Review", id: LIST },
+      ],
+    }),
   }),
 });
 
@@ -125,4 +153,7 @@ export const {
   useGrantComponentMutation,
   useRevokeComponentMutation,
   useListComponentsQuery,
+  useGetAiReviewConfigQuery,
+  useGetAiReviewStatusQuery,
+  useTriggerAiReviewMutation,
 } = api;

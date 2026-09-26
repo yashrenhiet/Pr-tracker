@@ -2,6 +2,7 @@ import { SearchX } from "lucide-react";
 import { useGetReviewQuery, useUpdateReviewMutation } from "../../store/api";
 import { Button, Drawer, Skeleton, StatePanel } from "../../components/ui";
 import { prIdentity } from "../../utils/prUrl";
+import { AiReviewSection } from "./AiReviewSection";
 import { ReviewDetailForm } from "./ReviewDetailForm";
 import { DETAILS_FORM_ID, detailsSaveKey } from "./reviewDetailKeys";
 import { StatusSection } from "./StatusSection";
@@ -72,6 +73,7 @@ export function ReviewDetailPanel({ reviewId, onClose }: ReviewDetailPanelProps)
       {review && (
         <>
           <StatusSection key={`status-${review.version}`} review={review} />
+          <AiReviewSection review={review} />
           <ReviewDetailForm review={review} onClose={onClose} />
         </>
       )}
