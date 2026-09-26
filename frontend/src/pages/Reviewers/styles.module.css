@@ -1,26 +1,69 @@
-.list {
+.toolbar {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.searchWrap {
+  position: relative;
+  flex: 1;
+  max-width: 420px;
+}
+
+.searchWrap svg {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.searchWrap input {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  padding: 9px var(--space-3) 9px 36px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.count {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: var(--space-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .reviewerCard {
   padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  height: 100%;
 }
 
 .header {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: var(--space-3);
-  margin-bottom: var(--space-3);
 }
 
 .identity {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  flex-direction: column;
+  gap: 2px;
 }
 
 .name {
@@ -28,26 +71,42 @@
   font-size: 15px;
 }
 
+.sub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: 13px;
+}
+
 .handle {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--color-text-muted);
-  background: var(--color-neutral-bg);
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
+  flex-shrink: 0;
 }
 
 .email {
-  font-size: 13px;
   color: var(--color-text-muted);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 
 .componentsLabel {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  margin-bottom: 6px;
   display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
 }
 
 .chips {
@@ -55,19 +114,21 @@
   flex-wrap: wrap;
   gap: 6px;
   list-style: none;
-  margin: 0 0 var(--space-2);
+  margin: 0 0 var(--space-3);
   padding: 0;
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 6px 3px var(--space-2);
-  background: var(--color-info-bg);
-  color: var(--color-info);
-  border-radius: var(--radius-sm);
+  gap: 2px;
+  padding: 3px 4px 3px 10px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+  border-radius: 999px;
+  font-family: var(--font-mono);
   font-size: 12px;
+  font-weight: 600;
 }
 
 .chipRemove {
@@ -76,44 +137,45 @@
   cursor: pointer;
   color: inherit;
   display: inline-flex;
-  padding: 2px;
-  border-radius: var(--radius-sm);
+  padding: 3px;
+  border-radius: 999px;
 }
+
 .chipRemove:hover {
-  background: rgba(29, 78, 216, 0.15);
+  background: rgba(79, 70, 229, 0.15);
 }
 
 .noComponents {
-  font-size: 12px;
+  margin: 0 0 var(--space-3);
+  font-size: 13px;
   color: var(--color-text-muted);
-  font-style: italic;
 }
 
 .grantForm {
   display: flex;
   gap: 6px;
-  max-width: 320px;
+  margin-top: auto;
 }
 
 .grantInput {
   flex: 1;
-  font-family: inherit;
+  min-width: 0;
+  font: inherit;
   font-size: 13px;
-  padding: 6px var(--space-2);
+  padding: 7px var(--space-3);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
 }
 
-.emptyState {
-  padding: var(--space-6) var(--space-4);
-  text-align: center;
-  color: var(--color-text-muted);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.emptyState svg {
-  color: var(--color-border-strong);
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .searchWrap {
+    max-width: none;
+  }
 }

@@ -39,3 +39,21 @@ export function fieldError(error: unknown, field: string): string | undefined {
   const body = error.data as ProblemBody | undefined;
   return body?.errors?.find((e) => e.field === field)?.message;
 }
+
+/** Optimistic-lock failure: someone else saved this record after we loaded it. */
+export function isConflict(error: unknown): boolean {
+  return isFetchBaseQueryError(error) && error.status === 409;
+}
+
+/**
+ * Customer-facing copy for a failed page load. Status codes are meaningless to customers, and the
+ * advice has to match the cause: "check your connection" is wrong when the server is the problem.
+ */
+export function loadErrorMessage(error: unknown): string {
+  if (isFetchBaseQueryError(error) && typeof error.status === "number") {
+    return error.status >= 500
+      ? "Something went wrong on our side. Please try again in a moment."
+      : "The request couldn't be completed. Please refresh the page.";
+  }
+  return "We couldn't reach the server. Check your internet connection and try again.";
+}

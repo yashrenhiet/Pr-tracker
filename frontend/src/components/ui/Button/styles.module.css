@@ -52,6 +52,15 @@
   border-color: var(--color-danger);
 }
 
+/* The final "yes, delete it" in a confirm dialog — the one place a filled red button is earned. */
+.dangerSolid {
+  background: var(--color-danger);
+  color: #fff;
+}
+.dangerSolid:hover:not(:disabled) {
+  background: var(--color-danger-hover);
+}
+
 .ghost {
   background: transparent;
   color: var(--color-text);

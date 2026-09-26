@@ -40,7 +40,8 @@ export function ReviewerComponents({ reviewer }: ReviewerComponentsProps) {
   }
 
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+      <span className={styles.componentsLabel}>Components</span>
       {reviewer.components.length > 0 ? (
         <ul className={styles.chips}>
           {reviewer.components.map((component) => (
@@ -58,7 +59,7 @@ export function ReviewerComponents({ reviewer }: ReviewerComponentsProps) {
           ))}
         </ul>
       ) : (
-        <p className={styles.noComponents}>No components granted yet.</p>
+        <p className={styles.noComponents}>Not assigned to any components yet.</p>
       )}
       <form className={styles.grantForm} onSubmit={handleGrant}>
         <label className="visually-hidden" htmlFor={`grant-${reviewer.id}`}>
@@ -70,15 +71,15 @@ export function ReviewerComponents({ reviewer }: ReviewerComponentsProps) {
           list={`components-${reviewer.id}`}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Grant a component..."
+          placeholder="Add a component"
         />
         <datalist id={`components-${reviewer.id}`}>
           {allComponents.map((c) => (
             <option key={c} value={c} />
           ))}
         </datalist>
-        <Button type="submit" variant="secondary" loading={isGranting}>
-          Grant
+        <Button type="submit" variant="secondary" loading={isGranting} disabled={!draft.trim()}>
+          Add
         </Button>
       </form>
     </div>

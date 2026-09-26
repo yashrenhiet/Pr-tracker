@@ -1,41 +1,65 @@
 .row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
 
 .card {
-  padding: var(--space-4);
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.interactive {
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.interactive:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.selected,
+.selected:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft), var(--shadow-sm);
 }
 
 .iconBadge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: var(--radius-md);
   flex-shrink: 0;
 }
 
-.card.neutral .iconBadge {
-  background: var(--color-neutral-bg);
-  color: var(--color-neutral);
+.neutral .iconBadge {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
 }
-.card.danger .iconBadge {
+.danger .iconBadge {
   background: var(--color-danger-bg);
   color: var(--color-danger);
 }
-.card.success .iconBadge {
+.success .iconBadge {
   background: var(--color-success-bg);
   color: var(--color-success);
 }
-.card.info .iconBadge {
+.info .iconBadge {
   background: var(--color-info-bg);
   color: var(--color-info);
 }
@@ -43,18 +67,48 @@
 .text {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .value {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
+  min-height: 29px;
+  display: flex;
+  align-items: center;
 }
 
 .label {
   font-size: 13px;
   color: var(--color-text-muted);
   font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .interactive:hover {
+    transform: none;
+  }
+}
+
+/* Four full-width cards filled a whole phone screen before any data; two-up keeps them glanceable. */
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+  }
+  .card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+  .iconBadge {
+    width: 32px;
+    height: 32px;
+  }
+  .value {
+    font-size: 22px;
+  }
 }

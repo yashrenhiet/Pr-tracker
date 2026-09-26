@@ -1,41 +1,24 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { useModalBehavior } from "../../../hooks/useModalBehavior";
 import styles from "./styles.module.css";
 
 export interface DrawerProps {
   title: string;
+  /** Secondary line under the title, e.g. the PR's repo path. */
+  subtitle?: ReactNode;
   onClose: () => void;
   children: ReactNode;
+  /** Pinned to the bottom of the panel so primary actions never scroll out of reach. */
+  footer?: ReactNode;
 }
 
-/**
- * A side panel used for the add/edit forms. Not a full focus trap (no dependency for that), but it
- * covers the WCAG 2.2 essentials: labelled as a dialog, Escape closes it, focus moves in on open and
- * back to the trigger on close, and clicking the backdrop closes it without swallowing clicks meant
- * for the panel itself.
- */
-export function Drawer({ title, onClose, children }: DrawerProps) {
+/** Side panel for add/edit flows. Modal semantics (focus trap, Escape, scroll lock, focus restore)
+ * come from `useModalBehavior`. */
+export function Drawer({ title, subtitle, onClose, children, footer }: DrawerProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  const previouslyFocused = useRef<Element | null>(null);
-
-  useEffect(() => {
-    previouslyFocused.current = document.activeElement;
-    panelRef.current?.focus();
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      if (previouslyFocused.current instanceof HTMLElement) {
-        previouslyFocused.current.focus();
-      }
-    };
-  }, [onClose]);
+  useModalBehavior(panelRef, onClose);
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
@@ -49,14 +32,18 @@ export function Drawer({ title, onClose, children }: DrawerProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.header}>
-          <h2 id={titleId} className={styles.title}>
-            {title}
-          </h2>
-          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close">
+          <div className={styles.heading}>
+            <h2 id={titleId} className={styles.title}>
+              {title}
+            </h2>
+            {subtitle && <div className={styles.subtitle}>{subtitle}</div>}
+          </div>
+          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close panel">
             <X size={20} aria-hidden="true" />
           </button>
         </div>
         <div className={styles.body}>{children}</div>
+        {footer && <div className={styles.footer}>{footer}</div>}
       </div>
     </div>
   );

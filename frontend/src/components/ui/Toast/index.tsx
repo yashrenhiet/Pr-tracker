@@ -36,9 +36,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ notify }}>
       {children}
-      <div className={styles.viewport} role="status" aria-live="polite">
+      <div className={styles.viewport}>
         {toasts.map((toast) => (
-          <div key={toast.id} className={[styles.toast, styles[toast.kind]].join(" ")}>
+          <div
+            key={toast.id}
+            className={[styles.toast, styles[toast.kind]].join(" ")}
+            // Failures interrupt (assertive); confirmations wait their turn (polite).
+            role={toast.kind === "error" ? "alert" : "status"}
+          >
             {toast.kind === "success" ? (
               <CheckCircle2 size={16} aria-hidden="true" />
             ) : (

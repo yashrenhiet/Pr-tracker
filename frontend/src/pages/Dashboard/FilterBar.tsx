@@ -5,6 +5,7 @@ import styles from "./FilterBar.module.css";
 
 export interface FilterBarProps {
   filter: ReviewFilter;
+  hasActiveFilters: boolean;
   onChange: (patch: Partial<ReviewFilter>) => void;
   onClear: () => void;
 }
@@ -16,8 +17,6 @@ const SORT_OPTIONS: { value: NonNullable<ReviewFilter["sort"]>; label: string }[
   { value: "raisedBy", label: "Raised by" },
   { value: "component", label: "Component" },
 ];
-
-const ACTIVE_FILTER_KEYS: (keyof ReviewFilter)[] = ["component", "raisedBy", "reviewer", "status"];
 
 function SearchField({
   id,
@@ -41,15 +40,11 @@ function SearchField({
   );
 }
 
-export function FilterBar({ filter, onChange, onClear }: FilterBarProps) {
+export function FilterBar({ filter, hasActiveFilters, onChange, onClear }: FilterBarProps) {
   const direction = filter.direction ?? "DESC";
-  const hasActiveFilters = ACTIVE_FILTER_KEYS.some((key) => {
-    const value = filter[key];
-    return Array.isArray(value) ? value.length > 0 : Boolean(value);
-  });
 
   return (
-    <Card className={styles.bar}>
+    <Card className={styles.bar} role="search" aria-label="Filter pull requests">
       <SearchField
         id="filter-component"
         label="Component"
@@ -82,7 +77,7 @@ export function FilterBar({ filter, onChange, onClear }: FilterBarProps) {
           <select
             id="filter-sort"
             value={filter.sort ?? "updatedAt"}
-            onChange={(e) => onChange({ sort: e.target.value as ReviewFilter["sort"] })}
+            onChange={(e) => onChange({ sort: e.target.value as ReviewFilter["sort"], page: 0 })}
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -97,7 +92,7 @@ export function FilterBar({ filter, onChange, onClear }: FilterBarProps) {
       <button
         type="button"
         className={styles.directionButton}
-        onClick={() => onChange({ direction: direction === "DESC" ? "ASC" : "DESC" })}
+        onClick={() => onChange({ direction: direction === "DESC" ? "ASC" : "DESC", page: 0 })}
         aria-label={direction === "DESC" ? "Sorted newest first, click for oldest first" : "Sorted oldest first, click for newest first"}
       >
         {direction === "DESC" ? (
@@ -111,7 +106,7 @@ export function FilterBar({ filter, onChange, onClear }: FilterBarProps) {
       {hasActiveFilters && (
         <Button type="button" variant="ghost" onClick={onClear}>
           <X size={14} aria-hidden="true" />
-          Clear
+          Clear filters
         </Button>
       )}
     </Card>

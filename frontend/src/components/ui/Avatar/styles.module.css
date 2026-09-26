@@ -1,0 +1,45 @@
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px var(--color-surface);
+  user-select: none;
+}
+
+.sm {
+  width: 28px;
+  height: 28px;
+  font-size: 10px;
+}
+
+.md {
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
+}
+
+.tone0 { background: #eef2ff; color: #4338ca; }
+.tone1 { background: #ecfeff; color: #0e7490; }
+.tone2 { background: #ecfdf5; color: #047857; }
+.tone3 { background: #fffbeb; color: #b45309; }
+.tone4 { background: #fff1f2; color: #be123c; }
+.tone5 { background: #f5f3ff; color: #6d28d9; }
+
+.stack {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Small enough overlap that the 2px ring never cuts into the neighbour's initials. */
+.stack > * + * {
+  margin-left: -4px;
+}
+
+.overflow {
+  background: var(--color-neutral-bg);
+  color: var(--color-neutral);
+}

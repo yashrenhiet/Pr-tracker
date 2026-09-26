@@ -14,6 +14,23 @@ import type {
 const LIST = "LIST" as const;
 
 /**
+ * Writes a mutation's returned review straight into the `getReview` cache, so the open drawer sees the
+ * new `version` the instant the server answers. Waiting for the tag-driven refetch left a window where
+ * "update status, then save details" sent the stale version and got a 409.
+ */
+async function syncReviewCache(
+  queryFulfilled: Promise<{ data: ReviewResponse }>,
+  dispatch: (action: unknown) => unknown,
+): Promise<void> {
+  try {
+    const { data } = await queryFulfilled;
+    dispatch(api.util.upsertQueryData("getReview", data.id, data));
+  } catch {
+    // The failure surfaces through the mutation hook's `error`; nothing to sync.
+  }
+}
+
+/**
  * The one API slice for the whole app. RTK Query owns loading/error state and the cache, so
  * components just call the generated hooks — no hand-rolled thunks or reducers needed.
  */
@@ -29,6 +46,10 @@ export const api = createApi({
         { type: "Review", id: LIST },
       ],
     }),
+    getReview: builder.query<ReviewResponse, number>({
+      query: (id) => `/reviews/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "Review", id }],
+    }),
     createReview: builder.mutation<ReviewResponse, CreateReview>({
       query: (body) => ({ url: "/reviews", method: "POST", body }),
       invalidatesTags: [
@@ -38,17 +59,13 @@ export const api = createApi({
     }),
     updateReview: builder.mutation<ReviewResponse, { id: number; body: UpdateReview }>({
       query: ({ id, body }) => ({ url: `/reviews/${id}`, method: "PATCH", body }),
-      invalidatesTags: (_result, _error, { id }) => [
-        { type: "Review", id },
-        { type: "Review", id: LIST },
-      ],
+      onQueryStarted: (_arg, { queryFulfilled, dispatch }) => syncReviewCache(queryFulfilled, dispatch),
+      invalidatesTags: [{ type: "Review", id: LIST }],
     }),
     changeReviewStatus: builder.mutation<ReviewResponse, { id: number; body: ChangeStatus }>({
       query: ({ id, body }) => ({ url: `/reviews/${id}/status`, method: "PUT", body }),
-      invalidatesTags: (_result, _error, { id }) => [
-        { type: "Review", id },
-        { type: "Review", id: LIST },
-      ],
+      onQueryStarted: (_arg, { queryFulfilled, dispatch }) => syncReviewCache(queryFulfilled, dispatch),
+      invalidatesTags: [{ type: "Review", id: LIST }],
     }),
     deleteReview: builder.mutation<void, number>({
       query: (id) => ({ url: `/reviews/${id}`, method: "DELETE" }),
@@ -97,6 +114,7 @@ export const api = createApi({
 
 export const {
   useListReviewsQuery,
+  useGetReviewQuery,
   useCreateReviewMutation,
   useUpdateReviewMutation,
   useChangeReviewStatusMutation,

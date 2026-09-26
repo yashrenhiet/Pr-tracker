@@ -1,25 +1,27 @@
 .backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 18, 24, 0.4);
+  background: rgba(15, 17, 30, 0.45);
   display: flex;
   justify-content: flex-end;
   z-index: 100;
+  animation: fade-in 0.15s ease-out;
 }
 
 .panel {
-  width: min(480px, 100vw);
+  width: min(520px, 100vw);
   height: 100%;
   background: var(--color-surface);
   box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
-  animation: slide-in 0.18s ease-out;
+  outline: none;
+  animation: slide-in 0.2s ease-out;
 }
 
 @keyframes slide-in {
   from {
-    transform: translateX(24px);
+    transform: translateX(32px);
     opacity: 0;
   }
   to {
@@ -28,33 +30,55 @@
   }
 }
 
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .panel {
+  .panel,
+  .backdrop {
     animation: none;
   }
 }
 
 .header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
   border-bottom: 1px solid var(--color-border);
 }
 
+.heading {
+  min-width: 0;
+}
+
 .title {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+}
+
+.subtitle {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
 }
 
 .closeButton {
   border: none;
   background: transparent;
   cursor: pointer;
-  padding: var(--space-1);
+  padding: 6px;
   border-radius: var(--radius-sm);
   color: var(--color-text-muted);
   display: inline-flex;
+  flex-shrink: 0;
 }
 .closeButton:hover {
   background: var(--color-neutral-bg);
@@ -65,4 +89,15 @@
   padding: var(--space-5);
   overflow-y: auto;
   flex: 1;
+  overscroll-behavior: contain;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
 }
