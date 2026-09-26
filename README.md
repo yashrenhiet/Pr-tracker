@@ -1,175 +1,392 @@
 # PR Tracker
 
-Track pull requests across repositories and (soon) run AI-assisted code reviews on them.
+**A self-hosted dashboard for tracking pull requests through code review.**
 
-> **Status:** phase 3. Backend CRUD API and the dashboard UI are in place; the AI review engine is
-> not built yet. See [Roadmap](#roadmap).
+PR Tracker gives a team one place to see every pull request that needs attention: its review
+status, who raised it, who is reviewing it, and what is blocking it. It runs on your own
+infrastructure, stores its data in PostgreSQL, and exposes everything through a documented REST API.
 
-## Layout
+![PR Tracker dashboard](docs/dashboard.png)
+
+## Contents
+
+- [Features](#features)
+- [How it works](#how-it-works)
+- [Quick start](#quick-start)
+- [Configuration](#configuration)
+- [Running in production](#running-in-production)
+- [Testing](#testing)
+- [REST API](#rest-api)
+- [Project structure](#project-structure)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Features
+
+**Review dashboard**
+
+- Track any GitHub pull request by pasting its URL. Links are normalised, so
+  `.../pull/7/files?diff=split` and `.../pull/7` are recognised as the same PR and can't be tracked twice.
+- Eleven review statuses, from *Ready for review* through *Approved*, *Merged* and *Closed*. A PR
+  marked *Blocked* must say why, and the reason is shown on the dashboard.
+- Summary cards for total, ready, blocked and merged PRs. Click a card to filter the table to that status.
+- Filter by component, author, reviewer and status; sort by any column. Filters live in the URL,
+  so a filtered view can be bookmarked or shared.
+- Every PR has a shareable link (`/?review=42`) that opens its detail panel directly.
+- Separate internal and platform reviewer lists, free-text context for reviewers, and a
+  key/value metadata field for things like ticket IDs.
+
+**Reviewer management**
+
+- Keep a directory of reviewers (name, email, GitHub handle).
+- Assign each reviewer the components they cover. Component names are created on first use.
+
+**Built to be relied on**
+
+- **No lost updates.** Records are versioned; if two people edit the same PR, the second save is
+  rejected with a clear message instead of silently overwriting the first. The user's edits are kept.
+- **Honest failure states.** A server or network failure is reported as an error with a retry
+  button, never as an empty list.
+- **Accessible.** Built against WCAG 2.2 AA: full keyboard support, focus-trapped dialogs, a skip
+  link, screen-reader announcements for every save and error, and visible focus everywhere.
+- **Responsive.** On phones, the table reflows into cards; nothing requires horizontal scrolling.
+- **Consistent errors.** The API returns [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)
+  problem responses, with per-field messages for validation failures.
+
+![Pull request detail panel](docs/review-panel.png)
+
+## How it works
 
 ```
-prTracker/
-├── backend/             Spring Boot 4 (Java 21) + PostgreSQL + Flyway
-├── frontend/            React + Vite dashboard, Redux Toolkit (RTK Query), Express BFF
-├── docker-compose.yml   Local PostgreSQL (works with Docker or Podman)
-└── .env.example         Configuration template
+ Browser ──► React app ──/api──► Spring Boot API ──► PostgreSQL
+            (Vite in dev,         (port 8081)        (schema managed
+             Express in prod)                          by Flyway)
 ```
 
-## Prerequisites
+| Layer    | Technology                                                                 |
+|----------|----------------------------------------------------------------------------|
+| Frontend | React 19, TypeScript, Redux Toolkit (RTK Query), React Router, CSS Modules |
+| Serving  | Vite dev server locally; a small Express server in production              |
+| Backend  | Java 21, Spring Boot 4, Spring Data JPA, Bean Validation                   |
+| Database | PostgreSQL 14+ (16 recommended), migrations by Flyway                      |
+| Tests    | JUnit 5 and Testcontainers (backend), Playwright (end-to-end)              |
 
-- Java 21, Maven 3.9+
-- PostgreSQL 16, either installed locally or in a container (Podman or Docker)
+The browser only ever talks to its own origin. `/api` requests are forwarded to the backend by the
+Vite dev server during development and by the Express server in production, so there is no CORS
+configuration to manage.
 
-### Option A: local PostgreSQL (macOS, simplest)
+## Quick start
+
+### Prerequisites
+
+- **Java 21** and **Maven 3.9+**
+- **Node.js 20.19+ or 22.12+** and npm
+- **PostgreSQL 14+**, either installed locally or run with Docker/Podman (see below)
+
+### 1. Get the code
+
+```bash
+git clone https://github.com/yashrenhiet/Pr-tracker.git
+cd Pr-tracker
+cp .env.example .env        # then set POSTGRES_PASSWORD and DB_PASSWORD to the same value
+```
+
+### 2. Start PostgreSQL
+
+Pick **one** of these.
+
+**With Docker or Podman** (uses `docker-compose.yml`):
+
+```bash
+docker compose up -d postgres      # or: podman-compose up -d postgres
+```
+
+**With a local install** (macOS example; on Linux use your package manager):
 
 ```bash
 brew install postgresql@16 && brew services start postgresql@16
 createuser -s prtracker
-createdb -O prtracker prtracker        # app database
-createdb -O prtracker prtracker_test   # throwaway database for tests (wiped on every run)
+createdb -O prtracker prtracker
 ```
 
-### Option B: Podman (macOS, one time)
+A local Homebrew install trusts local connections, so `DB_PASSWORD` can be left empty in `.env`.
+
+### 3. Start the backend
+
+```bash
+cd backend
+set -a && source ../.env && set +a   # export the DB_* settings
+mvn spring-boot:run
+```
+
+Flyway creates the schema on first start. Check it's up:
+
+```bash
+curl localhost:8081/actuator/health  # {"status":"UP", ...}
+```
+
+### 4. Start the frontend
+
+In a second terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open **http://localhost:5173**. The dashboard starts empty; click **Track a PR** to add your first one.
+
+## Configuration
+
+All settings are environment variables. `.env.example` lists them with working defaults.
+
+| Variable            | Used by    | Default                                     | Purpose                            |
+|---------------------|------------|---------------------------------------------|------------------------------------|
+| `DB_URL`            | backend    | `jdbc:postgresql://localhost:5432/prtracker` | JDBC connection string             |
+| `DB_USERNAME`       | backend    | `prtracker`                                 | Database user                      |
+| `DB_PASSWORD`       | backend    | *(empty)*                                   | Database password                  |
+| `SERVER_PORT`       | backend    | `8081`                                      | API port                           |
+| `BACKEND_URL`       | frontend   | `http://localhost:8081`                     | Where `/api` requests are forwarded |
+| `PORT`              | frontend   | `3000`                                      | Port for the production server     |
+| `POSTGRES_DB`       | compose    | `prtracker`                                 | Database created by the container  |
+| `POSTGRES_USER`     | compose    | `prtracker`                                 | User created by the container      |
+| `POSTGRES_PASSWORD` | compose    | *(required)*                                | Password for that user             |
+| `POSTGRES_PORT`     | compose    | `5432`                                      | Host port for the container        |
+
+## Running in production
+
+Build and run the backend as a single jar:
+
+```bash
+cd backend
+mvn clean package
+DB_URL=... DB_USERNAME=... DB_PASSWORD=... java -jar target/prtracker-backend-0.1.0-SNAPSHOT.jar
+```
+
+Build the frontend and serve it with the bundled Express server, which serves the static app,
+forwards `/api` to the backend, and falls back to `index.html` for client-side routes:
+
+```bash
+cd frontend
+npm ci
+npm run build          # app    -> frontend/dist
+npm run server:build   # server -> frontend/dist-server
+BACKEND_URL=http://your-backend:8081 PORT=3000 npm run server:start
+```
+
+The Express server exposes `GET /health` for load-balancer checks; the backend exposes
+`GET /actuator/health`.
+
+PR Tracker has no built-in authentication. Deploy it behind your organisation's SSO or an
+authenticating reverse proxy.
+
+## Testing
+
+### Backend
+
+```bash
+cd backend
+mvn test
+```
+
+Unit tests always run. The API and schema tests need a PostgreSQL database, found in this order:
+
+1. **`TEST_DB_URL`** (with optional `TEST_DB_USERNAME`, default `prtracker`, and `TEST_DB_PASSWORD`).
+   The tests **drop and recreate that database's `public` schema** before running, so point it at a
+   throwaway database:
+
+   ```bash
+   createdb -O prtracker prtracker_test
+   TEST_DB_URL=jdbc:postgresql://localhost:5432/prtracker_test mvn test
+   ```
+
+2. **Testcontainers**, if Docker or Podman is running. A disposable PostgreSQL container is
+   started automatically.
+
+3. **Neither available:** the database tests are *skipped*, not passed. Check the Maven summary
+   for the skipped count.
+
+<details>
+<summary>Using Testcontainers with Podman on macOS</summary>
 
 ```bash
 brew install podman podman-compose
-podman machine init
-podman machine start
-```
+podman machine init && podman machine start
 
-Testcontainers needs to find Podman's socket. Add to your shell profile:
-
-```bash
 export DOCKER_HOST="unix://$(podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}')"
 export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 export TESTCONTAINERS_RYUK_DISABLED=true
 ```
 
-Ryuk (Testcontainers' cleanup container) is unreliable on Podman; disabling it only means stray
-test containers are not reaped if the JVM is killed. Remove them with `podman container prune`.
+Ryuk, Testcontainers' cleanup container, is unreliable on Podman. With it disabled, containers left
+behind by a killed test run can be removed with `podman container prune`.
 
-## Quick start
+</details>
 
-```bash
-cp .env.example .env                 # then set POSTGRES_PASSWORD / DB_PASSWORD
-podman-compose up -d postgres        # skip if using local PostgreSQL (option A)
-cd backend
-set -a && source ../.env && set +a   # export DB_* for the app
-mvn spring-boot:run                  # Flyway creates the schema on startup
-curl localhost:8081/actuator/health
-```
-
-## Tests
-
-```bash
-cd backend
-TEST_DB_URL=jdbc:postgresql://localhost:5432/prtracker_test mvn test   # option A
-mvn test                                                              # option B (Testcontainers)
-```
-
-Unit tests always run. The API and schema tests need PostgreSQL:
-
-- **`TEST_DB_URL` set** (plus optional `TEST_DB_USERNAME`, default `prtracker`, and
-  `TEST_DB_PASSWORD`): the tests use that database, and **drop and recreate its `public` schema
-  first**. Only point it at a throwaway database.
-- **Otherwise**, Testcontainers starts a throwaway PostgreSQL if a container runtime is reachable.
-- **Neither available:** those tests are skipped, not passed. Check `target/surefire-reports` if
-  in doubt.
-
-## API
-
-All endpoints are under `/api`. Errors use [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)
-problem JSON (`{"status":409,"detail":"..."}`). Validation errors (400) also list each failed
-field: `"errors":[{"field":"email","message":"must be a well-formed email address"}]`.
-Timestamps are UTC ISO-8601 instants (`2026-09-25T13:43:18.809Z`).
-
-### Reviews
-
-| Method | Path                       | Notes                                                    |
-|--------|----------------------------|----------------------------------------------------------|
-| GET    | `/reviews`                 | Filter + paging, see below                               |
-| POST   | `/reviews`                 | `prUrl`, `component`, `raisedBy` required                |
-| GET    | `/reviews/{id}`            |                                                          |
-| PATCH  | `/reviews/{id}`            | Partial update; omitted fields are unchanged             |
-| PUT    | `/reviews/{id}/status`     | `{"status":"BLOCKED","blockReason":"..."}`               |
-| DELETE | `/reviews/{id}`            |                                                          |
-
-`GET /reviews` query parameters (all optional):
-`status` (comma-separated), `raisedBy`, `reviewer` (matches internal or platform reviewers),
-`component`, `createdFrom` / `createdTo` (ISO-8601 with offset, `createdTo` exclusive),
-`page` (default 0), `size` (1-100, default 20),
-`sort` (`createdAt|updatedAt|status|raisedBy|component`, default `updatedAt`),
-`direction` (`ASC|DESC`, default `DESC`).
-
-Behaviour worth knowing:
-
-- PR URLs are canonicalised: `.../pull/7/files?x=1` is stored as `.../pull/7`, and the same PR
-  cannot be tracked twice (409).
-- `PATCH` accepts an optional `version`; if it does not match, you get 409 instead of silently
-  overwriting someone else's change.
-- `BLOCKED` requires a `blockReason`; any other status clears it.
-- Reviewer lists are trimmed and deduplicated ignoring case. `metadata` is a free-form
-  string map for things like ticket IDs.
-
-Statuses: `READY_FOR_REVIEW`, `REVIEW_IN_PROGRESS`, `COMMENTS_ADDED`, `COMMENTS_ADDRESSED`,
-`APPROVED`, `MERGED`, `BLOCKED`, `BOT_REVIEW_COMPLETED`, `READY_FOR_PLATFORM_REVIEW`,
-`BOT_REVIEW_REJECTED`, `CLOSED`.
-
-### Reviewers and components
-
-| Method | Path                                      | Notes                         |
-|--------|-------------------------------------------|-------------------------------|
-| GET    | `/reviewers`                              | Sorted by name                |
-| POST   | `/reviewers`                              | `name`, `email`, `handle`     |
-| DELETE | `/reviewers/{id}`                         | Also removes grants           |
-| PUT    | `/reviewers/{id}/components/{component}`  | Grant (idempotent)            |
-| DELETE | `/reviewers/{id}/components/{component}`  | Revoke (idempotent)           |
-| GET    | `/components`                             | All known component names     |
-
-Emails, handles and component grants are unique ignoring case.
-
-## Frontend
+### Frontend
 
 ```bash
 cd frontend
-npm install
-npm run dev              # Vite dev server on :5173, proxies /api to the backend on :8081
+npm run lint           # oxlint
+npm run build          # type-checks, then builds
 ```
 
-Open http://localhost:5173 once the backend (see Quick start above) is running. There are two
-pages: the reviews dashboard (filter, add, edit, change status, delete) and reviewer management
-(add reviewers, grant/revoke the components they can see).
+### End-to-end
 
-A small Express BFF (`frontend/server`) proxies `/api` to the backend and serves the built app as a
-single-page app, for a production-style run instead of the Vite dev server:
+The Playwright suite drives a real browser against the running app. It covers failure states
+(server errors, offline, unknown routes), keyboard and focus behaviour in dialogs, concurrent-edit
+handling, and the mobile layout.
 
 ```bash
-npm run build          # frontend -> frontend/dist
-npm run server:build   # BFF -> frontend/dist-server
-BACKEND_URL=http://localhost:8081 PORT=3000 npm run server:start
+# with the backend and `npm run dev` both running:
+cd frontend
+npm run test:e2e
 ```
 
-The UI kit (`src/components/ui`) is plain CSS Modules over a small token palette in
-`src/styles/tokens.css` — no external component library. Server state (reviews, reviewers,
-components) is owned by one RTK Query API slice (`src/store/api.ts`); there's no hand-rolled
-loading/error state to keep in sync.
+The suite uses the Google Chrome already installed on your machine (`channel: "chrome"` in
+`playwright.config.ts`), so `npx playwright install` isn't needed. Some tests change data, so
+run them against a development database, not production.
 
-## Data model
+## REST API
 
-| Table                | Purpose                                                      |
-|----------------------|--------------------------------------------------------------|
-| `pr_review`          | One row per tracked PR: status, reviewers, context, metadata |
-| `reviewer`           | People who can be assigned as platform reviewers             |
-| `reviewer_component` | Which components each reviewer covers                        |
+Base path: `/api`. Request and response bodies are JSON. Timestamps are UTC ISO-8601
+(`2026-09-25T13:43:18.809Z`).
 
-## Roadmap
+### Reviews
 
-1. Scaffold: repo, docker-compose, Flyway schema (done)
-2. Backend CRUD API: reviews, reviewers, components (done)
-3. Frontend dashboard + BFF (done)
-4. Review engine: Anthropic/OpenAI via Spring AI, GitHub MCP with REST fallback, scheduler
-5. Extras: verification pass, missed-findings audit, staged reviews
+| Method   | Path                   | Description                                                   |
+|----------|------------------------|---------------------------------------------------------------|
+| `GET`    | `/reviews`             | List reviews, with filters and paging (see below)             |
+| `POST`   | `/reviews`             | Track a PR. Requires `prUrl`, `component`, `raisedBy`         |
+| `GET`    | `/reviews/{id}`        | Get one review                                                |
+| `PATCH`  | `/reviews/{id}`        | Update fields; omitted fields are left unchanged              |
+| `PUT`    | `/reviews/{id}/status` | Change status: `{"status": "BLOCKED", "blockReason": "..."}`  |
+| `DELETE` | `/reviews/{id}`        | Stop tracking a PR                                            |
+
+Query parameters for `GET /reviews` (all optional):
+
+| Parameter                  | Description                                                              |
+|----------------------------|--------------------------------------------------------------------------|
+| `status`                   | One or more statuses, comma-separated                                    |
+| `component`                | Component name                                                           |
+| `raisedBy`                 | Author                                                                   |
+| `reviewer`                 | Matches either internal or platform reviewers                            |
+| `createdFrom`, `createdTo` | ISO-8601 with offset; `createdTo` is exclusive                           |
+| `page`, `size`             | Zero-based page, and page size from 1 to 100 (default 20)                |
+| `sort`, `direction`        | `createdAt`, `updatedAt` (default), `status`, `raisedBy`, `component`; `ASC` or `DESC` (default) |
+
+Example:
+
+```bash
+curl -X POST localhost:8081/api/reviews \
+  -H 'Content-Type: application/json' \
+  -d '{"prUrl": "https://github.com/acme/api/pull/57", "component": "api", "raisedBy": "marco",
+       "internalReviewers": ["ann"], "metadata": {"ticket": "API-311"}}'
+
+curl 'localhost:8081/api/reviews?status=READY_FOR_REVIEW,BLOCKED&component=api&sort=createdAt'
+```
+
+**Statuses:** `READY_FOR_REVIEW`, `REVIEW_IN_PROGRESS`, `COMMENTS_ADDED`, `COMMENTS_ADDRESSED`,
+`APPROVED`, `MERGED`, `BLOCKED`, `BOT_REVIEW_COMPLETED`, `READY_FOR_PLATFORM_REVIEW`,
+`BOT_REVIEW_REJECTED`, `CLOSED`.
+
+**Rules the API enforces:**
+
+- A PR URL can be tracked only once; a duplicate returns `409 Conflict`.
+- `BLOCKED` requires a `blockReason`. Moving to any other status clears it.
+- `PATCH` accepts the record's `version`. If someone else has saved since you read it, you get
+  `409 Conflict` rather than overwriting their change.
+- Reviewer names are trimmed and de-duplicated, ignoring case.
+
+### Reviewers and components
+
+| Method   | Path                                     | Description                               |
+|----------|------------------------------------------|-------------------------------------------|
+| `GET`    | `/reviewers`                             | List reviewers, sorted by name            |
+| `POST`   | `/reviewers`                             | Add a reviewer: `name`, `email`, `handle` |
+| `DELETE` | `/reviewers/{id}`                        | Remove a reviewer and their assignments   |
+| `PUT`    | `/reviewers/{id}/components/{component}` | Assign a component (idempotent)           |
+| `DELETE` | `/reviewers/{id}/components/{component}` | Unassign a component (idempotent)         |
+| `GET`    | `/components`                            | List all known component names            |
+
+Emails, handles and component assignments are unique, ignoring case.
+
+### Errors
+
+Every error is an RFC 9457 problem document. Validation errors also list each field:
+
+```json
+{
+  "status": 400,
+  "title": "Bad Request",
+  "detail": "Validation failed",
+  "instance": "/api/reviewers",
+  "errors": [{ "field": "email", "message": "must be a well-formed email address" }]
+}
+```
+
+## Project structure
+
+```
+.
+├── backend/                         Spring Boot API
+│   └── src/main/
+│       ├── java/io/prtracker/
+│       │   ├── review/              PRs: entity, filtering, status rules, URL normalisation
+│       │   ├── reviewer/            Reviewers and their component assignments
+│       │   ├── component/           Component listing
+│       │   └── common/              Error handling (RFC 9457), paging, input normalisation
+│       └── resources/db/migration/  Flyway SQL migrations
+├── frontend/
+│   ├── src/
+│   │   ├── pages/                   Dashboard, Reviewers, Not found
+│   │   ├── components/ui/           In-house component library (CSS Modules, no UI dependency)
+│   │   ├── store/api.ts             RTK Query API client: all server state and caching
+│   │   ├── hooks/                   Debouncing, modal focus management, page titles
+│   │   └── styles/tokens.css        Design tokens: colour, spacing, radius, shadow
+│   ├── server/                      Express production server
+│   └── e2e/                         Playwright tests
+├── docs/                            Screenshots
+├── docker-compose.yml               PostgreSQL for local development
+└── .env.example                     Configuration template
+```
+
+### Data model
+
+| Table                | Purpose                                                                |
+|----------------------|------------------------------------------------------------------------|
+| `pr_review`          | One row per tracked PR: status, reviewers, context, metadata, version  |
+| `reviewer`           | Reviewer directory                                                     |
+| `reviewer_component` | Which components each reviewer covers                                  |
+
+Statuses are stored as readable text guarded by a `CHECK` constraint, reviewer lists as
+PostgreSQL arrays, and free-form metadata as `jsonb`.
+
+## Contributing
+
+Contributions are welcome. Bug reports, fixes and improvements all help.
+
+1. **Open an issue first** for anything beyond a small fix, so the approach can be agreed before
+   you spend time on it.
+2. **Fork and branch** from `main`.
+3. **Keep changes focused.** One concern per pull request is much easier to review.
+4. **Run the checks** before opening your PR:
+
+   ```bash
+   (cd backend && mvn test)
+   (cd frontend && npm run lint && npm run build)
+   ```
+
+   If you change the UI, run `npm run test:e2e` too.
+5. **Change the schema through a new migration** (`V2__...sql`, and so on). Never edit a
+   migration that has already been released.
+6. **Describe the why** in your PR: what problem it solves, and how you tested it.
+
+Conventions: UI colours and spacing come from `tokens.css`, not hard-coded values; new UI must
+work with a keyboard alone and meet WCAG 2.2 AA; API errors go through `GlobalExceptionHandler`
+so they stay RFC 9457-shaped.
 
 ## License
 
-[MIT](LICENSE)
+Released under the [MIT License](LICENSE).
